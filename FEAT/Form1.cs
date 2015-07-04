@@ -151,7 +151,17 @@ namespace Fire_Emblem_Awakening_Archive_Tool
                 else if (ext == ".txt")
                 {
                     string[] textfile = File.ReadAllLines(path);
-                    if (textfile.Length > 6 && textfile[0].StartsWith("MESS_ARCHIVE") && textfile[3] == "Message Name: Message" && textfile.Skip(6).All(s => s.Contains(": ")))
+                    int count = textfile.Count();
+                    bool valid = true;
+                    for (int line = 6; line < count; line++)
+                    {
+                        if (!textfile[line].Contains(": ")) { AddLine(RTB_Output, "Invalid text file. Line " + (line + 1) + " missing \": \""); valid = false; break; }
+                    }
+                    if (!valid) { } //skip compilation
+                    else if (textfile.Length <= 6)                                { AddLine(RTB_Output, "Invalid text file. Not long enough"); }
+                    else if (!textfile[0].StartsWith("MESS_ARCHIVE"))        { AddLine(RTB_Output, "Invalid text file. Does not start with MESS_ARCHIVE"); }
+                    else if (textfile[3] != "Message Name: Message")         { AddLine(RTB_Output, "Invalid text file. Message line not on line 4"); }
+                    else // good to go!
                     {
                         DialogResult dr = DialogResult.Cancel;
                         if (InvokeRequired)
@@ -175,7 +185,20 @@ namespace Fire_Emblem_Awakening_Archive_Tool
                         }
                     }
                 }
-            }
+                else if (ext == ".rec")
+                {
+                  AddText(RTB_Output, string.Format("Repacking to LZ13 from {0}...", Path.GetFileName(path)));
+                  string outname = Path.GetDirectoryName(path) + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(path);
+                  byte[] arch = File.ReadAllBytes(path);
+                  byte[] cmp = LZ11Compress(arch);
+                  byte[] cmp2 = new byte[cmp.Length + 4];
+                  cmp2[0] = 0x13;
+                  Array.Copy(cmp, 0, cmp2, 4, cmp.Length);
+                  Array.Copy(cmp, 1, cmp2, 1, 3);
+                  File.WriteAllBytes(outname + ".lz", cmp2);
+                  AddLine(RTB_Output, "Complete!");
+                }
+          }
         }
 
         private void ExtractFireEmblemArchive(string outdir, byte[] archive)
